@@ -1,2 +1,0 @@
-worker: node bot/index.js
-web: node web/server.js
