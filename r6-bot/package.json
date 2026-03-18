@@ -1,0 +1,14 @@
+{
+  "name": "r6-generator",
+  "version": "1.0.0",
+  "description": "R6 Account Generator Bot + Dashboard",
+  "scripts": {
+    "start:bot": "node bot/index.js",
+    "start:web": "node web/server.js",
+    "install:all": "cd bot && npm install && cd ../web && npm install",
+    "start": "node bot/index.js & node web/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
