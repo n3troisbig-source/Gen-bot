@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>R6 Bot — Control Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #060810;
+      --surface: #0c0f1a;
+      --border: #1a2035;
+      --accent: #ff6b00;
+      --accent2: #ff9500;
+      --gold: #ffd700;
+      --green: #00ff88;
+      --red: #ff1744;
+      --blue: #00b4ff;
+      --text: #dde4f0;
+      --muted: #4a5570;
+      --glow-orange: rgba(255,107,0,0.2);
+      --glow-green: rgba(0,255,136,0.15);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Share Tech Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated grid bg */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,107,0,0.07), transparent),
+        repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255,107,0,0.025) 50px),
+        repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255,107,0,0.025) 50px);
+      pointer-events: none;
+    }
+
+    /* ── LOCK SCREEN ─────────────────────────────── */
+    #lock {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+    }
+    #lock.gone { display: none; }
+
+    .lock-box {
+      width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 80px var(--glow-orange), 0 0 20px rgba(0,0,0,.8);
+      padding: 48px 44px 44px;
+      text-align: center;
+      clip-path: polygon(0 0, calc(100%-20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100%-20px));
+      animation: fadeIn .4s ease;
+    }
+
+    @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    .lock-icon { font-size: 56px; margin-bottom: 14px; filter: drop-shadow(0 0 16px var(--accent)); }
+
+    .lock-box h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px; font-weight: 900;
+      letter-spacing: 4px;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .lock-sub {
+      font-size: 11px; color: var(--muted);
+      letter-spacing: 2px; margin-bottom: 32px;
+    }
+
+    .lock-input {
+      width: 100%;
+      background: rgba(255,107,0,0.05);
+      border: 1px solid var(--border);
+      border-bottom: 2px solid var(--accent);
+      color: var(--accent2);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 20px; letter-spacing: 8px; text-align: center;
+      padding: 14px 20px; outline: none; transition: all .3s;
+    }
+    .lock-input:focus { box-shadow: 0 0 24px var(--glow-orange); border-color: var(--accent2); }
+
+    .lock-btn {
+      width: 100%; margin-top: 16px; padding: 15px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; color: #000;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px; font-weight: 700; letter-spacing: 3px;
+      cursor: pointer; transition: all .2s;
+      clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+    }
+    .lock-btn:hover { filter: brightness(1.2); }
+
+    .lock-err { height: 18px; margin-top: 10px; font-size: 12px; color: var(--red); letter-spacing: 1px; }
+
+    /* ── MAIN APP ─────────────────────────────────── */
+    #app { display: none; position: relative; z-index: 1; }
+    #app.show { display: block; }
+
+    /* Header */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px; font-weight: 900; letter-spacing: 3px;
+      color: var(--accent);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .hdr-right { display: flex; align-items: center; gap: 20px; font-size: 12px; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.3);
+      padding: 6px 14px;
+      font-size: 11px; letter-spacing: 1px; color: var(--green);
+      transition: all .5s;
+    }
+    .status-pill.offline { background: rgba(255,23,68,0.08); border-color: rgba(255,23,68,0.3); color: var(--red); }
+
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); animation: pulse 2s infinite;
+    }
+    .dot.off { background: var(--red); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,255,136,.4)} 50%{opacity:.6;box-shadow:0 0 0 4px transparent} }
+
+    /* Main grid */
+    main { max-width: 1100px; margin: 0 auto; padding: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+      position: relative;
+    }
+    .card::before {
+      content: ''; position: absolute; top:0; left:0; right:0; height:2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+    }
+    .card.full { grid-column: 1/-1; }
+    .card.green-glow { box-shadow: 0 0 30px var(--glow-green); border-color: rgba(0,255,136,0.2); }
+    .card.green-glow::before { background: linear-gradient(90deg, var(--green), transparent); }
+
+    .card-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── BOT CONTROL ─────────────── */
+    .big-toggle {
+      width: 100%; padding: 22px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 15px; font-weight: 900; letter-spacing: 4px;
+      border: none; cursor: pointer; transition: all .3s;
+      clip-path: polygon(10px 0, 100% 0, calc(100%-10px) 100%, 0 100%);
+      margin-bottom: 16px;
+    }
+    .big-toggle.start {
+      background: linear-gradient(135deg, #00c853, #00e676);
+      color: #000;
+      box-shadow: 0 0 30px rgba(0,230,118,.25);
+    }
+    .big-toggle.stop {
+      background: linear-gradient(135deg, var(--red), #cc0022);
+      color: #fff;
+      box-shadow: 0 0 30px rgba(255,23,68,.25);
+    }
+    .big-toggle:hover { filter: brightness(1.15); transform: translateY(-2px); }
+    .big-toggle:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .ping-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      padding: 10px 14px; font-size: 12px; margin-top: 8px;
+    }
+    .ping-val { color: var(--green); font-size: 14px; }
+    .ping-val.warn { color: var(--gold); }
+    .ping-val.dead { color: var(--red); }
+
+    /* ── UPTIME BAR ───────────────── */
+    .uptime-row { display: flex; gap: 3px; margin-top: 6px; }
+    .uptime-seg {
+      flex: 1; height: 20px;
+      background: rgba(0,255,136,0.15);
+      border: 1px solid rgba(0,255,136,0.2);
+      transition: background .3s;
+    }
+    .uptime-seg.active { background: var(--green); box-shadow: 0 0 6px rgba(0,255,136,.5); }
+    .uptime-seg.dead   { background: rgba(255,23,68,0.4); border-color: rgba(255,23,68,0.4); }
+
+    /* ── STATS ────────────────────── */
+    .stats { display: flex; gap: 14px; margin-bottom: 0; }
+    .stat {
+      flex: 1; background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      padding: 16px; text-align: center;
+    }
+    .stat-num {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 32px; font-weight: 900;
+      color: var(--gold); line-height: 1;
+    }
+    .stat-lbl { font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-top: 5px; text-transform: uppercase; }
+
+    /* ── FORMS ────────────────────── */
+    .fgroup { margin-bottom: 14px; }
+    label { display: block; font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+
+    input, textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-bottom: 2px solid var(--accent);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px; padding: 10px 12px; outline: none; transition: all .2s; resize: vertical;
+    }
+    input:focus, textarea:focus { box-shadow: 0 0 14px var(--glow-orange); border-color: var(--accent2); }
+
+    /* ── BUTTONS ──────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px; letter-spacing: 1px;
+      border: none; cursor: pointer; transition: all .2s;
+      clip-path: polygon(6px 0, 100% 0, calc(100%-6px) 100%, 0 100%);
+    }
+    .btn-p { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; font-weight: 700; }
+    .btn-g { background: linear-gradient(135deg, #00c853, #00e676); color: #000; font-weight: 700; }
+    .btn-d { background: linear-gradient(135deg, var(--red), #aa0011); color: #fff; }
+    .btn-s { background: transparent; border: 1px solid var(--accent); color: var(--accent); clip-path: none; }
+    .btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+    /* ── TABS ─────────────────────── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab { padding: 8px 18px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); transition: all .2s; }
+    .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+    .tp { display: none; }
+    .tp.on { display: block; }
+
+    /* ── LISTS ────────────────────── */
+    .list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border); }
+    .list::-webkit-scrollbar { width: 3px; }
+    .list::-webkit-scrollbar-thumb { background: var(--accent); }
+
+    .list-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      font-size: 11px; gap: 10px;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item:nth-child(odd) { background: rgba(255,255,255,0.018); }
+    .li-email { color: var(--accent); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .li-pass  { color: var(--muted);  flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 12px; opacity:.6; flex-shrink:0; }
+    .del:hover { opacity:1; }
+
+    /* ── LOG ──────────────────────── */
+    .log {
+      background: #03050c;
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      font-size: 11px; color: var(--green);
+      height: 140px; overflow-y: auto; line-height: 1.9;
+    }
+    .log .ll { display: block; }
+    .log .ll.e { color: var(--red); }
+    .log .ll.w { color: var(--gold); }
+    .log .ll.b { color: var(--blue); }
+
+    /* ── TOAST ────────────────────── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--surface);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-size: 12px; padding: 12px 20px;
+      transform: translateY(60px); opacity: 0;
+      transition: all .3s; z-index: 9999;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.err  { border-color: var(--red); color: var(--red); }
+
+    /* ── KEEPALIVE INDICATOR ──────── */
+    .ka-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,255,136,0.04);
+      border: 1px solid rgba(0,255,136,0.15);
+      padding: 10px 14px; font-size: 11px; margin-top: 10px;
+    }
+    .ka-row .label { color: var(--muted); letter-spacing: 1px; }
+    .ka-row .val   { color: var(--green); }
+
+    @media(max-width:768px){
+      main{grid-template-columns:1fr;padding:14px;}
+      .card.full{grid-column:1;}
+      .stats{flex-direction:column;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOCK -->
+<div id="lock">
+  <div class="lock-box">
+    <div class="lock-icon">🎯</div>
+    <h1>R6 GENERATOR</h1>
+    <p class="lock-sub">// ENTER ACCESS CODE</p>
+    <input type="password" id="pw" class="lock-input" placeholder="••••••••" maxlength="32" autocomplete="off"/>
+    <button class="lock-btn" onclick="unlock()">AUTHENTICATE</button>
+    <div class="lock-err" id="pw-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="logo">🎯 R6 GENERATOR</div>
+    <div class="hdr-right">
+      <div class="status-pill" id="bot-pill">
+        <span class="dot" id="bot-dot"></span>
+        <span id="bot-status-txt">CONNECTING...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- BOT CONTROL -->
+    <div class="card green-glow" id="control-card">
+      <div class="card-title">⚡ Bot Control</div>
+
+      <button class="big-toggle stop" id="toggle-btn" onclick="toggleBot()">
+        ■ STOP BOT
+      </button>
+
+      <div class="ping-bar">
+        <span class="label" style="color:var(--muted)">LAST PING</span>
+        <span class="ping-val" id="last-ping">—</span>
+      </div>
+      <div class="ping-bar">
+        <span class="label" style="color:var(--muted)">NEXT PING IN</span>
+        <span class="ping-val" id="next-ping">—</span>
+      </div>
+      <div class="ping-bar">
+        <span class="label" style="color:var(--muted)">TOTAL PINGS</span>
+        <span class="ping-val" id="ping-count">0</span>
+      </div>
+
+      <div style="margin-top:14px">
+        <label>Uptime (last 30 pings)</label>
+        <div class="uptime-row" id="uptime-bar"></div>
+      </div>
+
+      <div class="ka-row">
+        <span class="label">🔒 PAGE OPEN = BOT ALIVE</span>
+        <span class="val" id="ka-status">ACTIVE</span>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="card">
+      <div class="card-title">📊 Stats</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num" id="st-accounts">—</div>
+          <div class="stat-lbl">In Stock</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="st-premium">—</div>
+          <div class="stat-lbl">Premium</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="st-gen">—</div>
+          <div class="stat-lbl">Generated</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD ACCOUNTS -->
+    <div class="card">
+      <div class="card-title">📥 Add Accounts</div>
+      <div class="tabs">
+        <div class="tab on" onclick="tab('bulk','single',this)">Bulk</div>
+        <div class="tab" onclick="tab('single','bulk',this)">Single</div>
+      </div>
+      <div id="tp-bulk" class="tp on">
+        <div class="fgroup">
+          <label>Paste accounts — one per line</label>
+          <textarea id="bulk" rows="5" placeholder="email:pass | Verified: No/No | 2FA: Yes | Username: X | Level: 70 | Credits: 677 | Renown: 49044 | Items: 44 | Found Ranks: [Platinum]"></textarea>
+        </div>
+        <button class="btn btn-p" onclick="bulkAdd()">⬆ UPLOAD BULK</button>
+      </div>
+      <div id="tp-single" class="tp">
+        <div class="fgroup">
+          <label>Account line</label>
+          <input type="text" id="single-acc" placeholder="email:pass | field | field..."/>
+        </div>
+        <button class="btn btn-p" onclick="singleAdd()">➕ ADD ACCOUNT</button>
+      </div>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="card">
+      <div class="card-title">👑 Premium Users</div>
+      <div class="fgroup">
+        <label>Discord User ID</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="prem-id" placeholder="123456789012345678" style="flex:1"/>
+          <button class="btn btn-g" onclick="addPrem()">ADD</button>
+        </div>
+      </div>
+      <div class="list" id="prem-list"></div>
+    </div>
+
+    <!-- ACCOUNT STOCK -->
+    <div class="card full">
+      <div class="card-title">
+        📋 Account Stock
+        <span style="margin-left:auto;font-size:10px;color:var(--muted);font-weight:400;font-family:Share Tech Mono,monospace" id="stock-count"></span>
+      </div>
+      <div class="list" id="acc-list" style="max-height:260px"></div>
+      <div class="btn-row">
+        <button class="btn btn-d" onclick="clearAll()">🗑 CLEAR ALL</button>
+        <button class="btn btn-s" onclick="exportAcc()">⬇ EXPORT JSON</button>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card full">
+      <div class="card-title">📡 Activity Log</div>
+      <div class="log" id="log"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── PASSWORD ──────────────────────────────────────────────────
+const PASS = 'lightwork';
+function unlock() {
+  if (document.getElementById('pw').value === PASS) {
+    document.getElementById('lock').classList.add('gone');
+    document.getElementById('app').classList.add('show');
+    init();
+  } else {
+    const e = document.getElementById('pw-err');
+    e.textContent = '// ACCESS DENIED';
+    setTimeout(() => e.textContent = '', 2000);
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') unlock(); });
+});
+
+// ── DATA (localStorage) ───────────────────────────────────────
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } },
+  set: (k,v) => localStorage.setItem(k, JSON.stringify(v))
+};
+const getAccounts = ()  => LS.get('r6_accounts')  || [];
+const saveAccounts = a  => LS.set('r6_accounts', a);
+const getPremium   = ()  => LS.get('r6_premium')   || [];
+const savePremium  = p  => LS.set('r6_premium', p);
+const getTotalGen  = ()  => LS.get('r6_total_gen') || 0;
+
+// ── BOT STATE ─────────────────────────────────────────────────
+let botRunning = true;
+let pingInterval = null;
+let countdownInterval = null;
+let pingCount = 0;
+let nextPingIn = 0;
+const PING_EVERY = 25000; // 25 seconds
+const uptimeLog  = [];
+
+// The URL to keep alive — your Vercel deployment URL
+// Falls back to pinging this same page
+const BOT_URL = '/api/index';
+
+function toggleBot() {
+  botRunning = !botRunning;
+  if (botRunning) {
+    startPinging();
+    log('Bot re-enabled by user', 'b');
+  } else {
+    stopPinging();
+    log('Bot manually stopped', 'w');
+  }
+  updateBotUI();
+}
+
+function updateBotUI() {
+  const btn  = document.getElementById('toggle-btn');
+  const pill = document.getElementById('bot-pill');
+  const dot  = document.getElementById('bot-dot');
+  const txt  = document.getElementById('bot-status-txt');
+  const ka   = document.getElementById('ka-status');
+
+  if (botRunning) {
+    btn.textContent = '■ STOP BOT';
+    btn.className   = 'big-toggle stop';
+    pill.className  = 'status-pill';
+    dot.className   = 'dot';
+    txt.textContent = 'BOT ONLINE';
+    ka.textContent  = 'ACTIVE';
+    document.getElementById('control-card').classList.add('green-glow');
+  } else {
+    btn.textContent = '▶ START BOT';
+    btn.className   = 'big-toggle start';
+    pill.className  = 'status-pill offline';
+    dot.className   = 'dot off';
+    txt.textContent = 'BOT OFFLINE';
+    ka.textContent  = 'PAUSED';
+    document.getElementById('next-ping').textContent = '—';
+    document.getElementById('control-card').classList.remove('green-glow');
+  }
+}
+
+async function pingBot() {
+  const t0 = Date.now();
+  try {
+    const res = await fetch(BOT_URL, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000)
+    });
+    const ms  = Date.now() - t0;
+    const ok  = res.ok;
+
+    pingCount++;
+    uptimeLog.push(ok ? 'ok' : 'warn');
+    if (uptimeLog.length > 30) uptimeLog.shift();
+
+    const el  = document.getElementById('last-ping');
+    el.textContent = `${ms}ms`;
+    el.className   = ms < 800 ? 'ping-val' : ms < 2000 ? 'ping-val warn' : 'ping-val dead';
+
+    document.getElementById('ping-count').textContent = pingCount;
+
+    log(`Ping #${pingCount} → ${ms}ms [${ok ? 'OK' : 'WARN ' + res.status}]`, ok ? '' : 'w');
+    renderUptimeBar();
+  } catch(err) {
+    pingCount++;
+    uptimeLog.push('dead');
+    if (uptimeLog.length > 30) uptimeLog.shift();
+    document.getElementById('last-ping').textContent = 'TIMEOUT';
+    document.getElementById('last-ping').className   = 'ping-val dead';
+    document.getElementById('ping-count').textContent = pingCount;
+    log(`Ping #${pingCount} → FAILED: ${err.message}`, 'e');
+    renderUptimeBar();
+  }
+}
+
+function renderUptimeBar() {
+  const bar = document.getElementById('uptime-bar');
+  const total = 30;
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const entry = uptimeLog[i] || null;
+    const cls = !entry ? '' : entry === 'ok' ? 'active' : entry === 'warn' ? '' : 'dead';
+    html += `<div class="uptime-seg ${cls}"></div>`;
+  }
+  bar.innerHTML = html;
+}
+
+function startPinging() {
+  if (pingInterval) return;
+  pingBot(); // immediate ping
+  pingInterval = setInterval(pingBot, PING_EVERY);
+
+  nextPingIn = PING_EVERY / 1000;
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    if (!botRunning) return;
+    nextPingIn--;
+    if (nextPingIn <= 0) nextPingIn = PING_EVERY / 1000;
+    document.getElementById('next-ping').textContent = nextPingIn + 's';
+  }, 1000);
+}
+
+function stopPinging() {
+  clearInterval(pingInterval);
+  clearInterval(countdownInterval);
+  pingInterval = null;
+}
+
+// Stop pinging when tab is hidden, resume when visible
+document.addEventListener('visibilitychange', () => {
+  if (!botRunning) return;
+  if (document.hidden) {
+    log('Tab hidden — pinging continues in background', 'w');
+  } else {
+    log('Tab active — pinging active', 'b');
+    pingBot(); // immediate ping on return
+  }
+});
+
+// ── ACCOUNTS ─────────────────────────────────────────────────
+function parseAccount(line) {
+  const parts = line.split('|').map(s => s.trim());
+  const [email, password] = (parts[0]||'').split(':').map(s=>s.trim());
+  const obj = { raw: line, email: email||'', password: password||'' };
+  for (const part of parts.slice(1)) {
+    const low = part.toLowerCase(), val = part.split(':').slice(1).join(':').trim();
+    if (low.startsWith('verified'))    obj.verified  = val;
+    else if (low.startsWith('2fa'))    obj.twofa     = val;
+    else if (low.startsWith('banned')) obj.banned    = val;
+    else if (low.startsWith('username')) obj.username= val;
+    else if (low.startsWith('level'))  obj.level     = val;
+    else if (low.startsWith('platform')) obj.platforms=val;
+    else if (low.startsWith('credits')) obj.credits  = val;
+    else if (low.startsWith('renown')) obj.renown    = val;
+    else if (low.startsWith('items'))  obj.items     = val;
+    else if (low.includes('rank'))     obj.ranks     = val;
+  }
+  return obj;
+}
+
+function bulkAdd() {
+  const raw   = document.getElementById('bulk').value.trim();
+  if (!raw) return toast('Paste some accounts first', true);
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  const acc   = getAccounts();
+  lines.forEach(l => acc.push(parseAccount(l)));
+  saveAccounts(acc);
+  document.getElementById('bulk').value = '';
+  refresh(); toast(`✅ Added ${lines.length} accounts`);
+  log(`Added ${lines.length} accounts. Total: ${acc.length}`);
+}
+
+function singleAdd() {
+  const line = document.getElementById('single-acc').value.trim();
+  if (!line) return toast('Enter an account line', true);
+  const acc  = getAccounts();
+  acc.push(parseAccount(line));
+  saveAccounts(acc);
+  document.getElementById('single-acc').value = '';
+  refresh(); toast('✅ Account added');
+  log(`Single account added. Total: ${acc.length}`);
+}
+
+function deleteAcc(i) {
+  const acc = getAccounts(); acc.splice(i,1); saveAccounts(acc); refresh();
+}
+
+function clearAll() {
+  if (!confirm('Clear ALL accounts?')) return;
+  saveAccounts([]); refresh(); toast('Cleared', true);
+  log('All accounts cleared.', 'w');
+}
+
+function exportAcc() {
+  const b = new Blob([JSON.stringify(getAccounts(),null,2)], {type:'application/json'});
+  const a = Object.assign(document.createElement('a'), {href:URL.createObjectURL(b), download:'r6_accounts.json'});
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Exported');
+}
+
+// ── PREMIUM ───────────────────────────────────────────────────
+function addPrem() {
+  const id = document.getElementById('prem-id').value.trim();
+  if (!id || !/^\d{17,20}$/.test(id)) return toast('Enter valid Discord ID', true);
+  const p  = getPremium();
+  if (p.includes(id)) return toast('Already has premium', true);
+  p.push(id); savePremium(p);
+  document.getElementById('prem-id').value = '';
+  refresh(); toast(`✅ ${id} granted premium`);
+  log(`Premium granted to ${id}`);
+}
+
+function delPrem(i) {
+  const p = getPremium(); p.splice(i,1); savePremium(p); refresh();
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function refresh() {
+  const accounts = getAccounts();
+  const premium  = getPremium();
+
+  document.getElementById('st-accounts').textContent = accounts.length;
+  document.getElementById('st-premium').textContent  = premium.length;
+  document.getElementById('st-gen').textContent      = getTotalGen();
+  document.getElementById('stock-count').textContent = `${accounts.length} accounts`;
+
+  const al = document.getElementById('acc-list');
+  al.innerHTML = accounts.length
+    ? accounts.map((a,i)=>`<div class="list-item">
+        <span class="li-email">${esc(a.email)}</span>
+        <span class="li-pass">${esc(a.password)}</span>
+        <button class="del" onclick="deleteAcc(${i})">✕</button>
+      </div>`).join('')
+    : '<div style="padding:18px;text-align:center;color:var(--muted);font-size:11px">No accounts loaded</div>';
+
+  const pl = document.getElementById('prem-list');
+  pl.innerHTML = premium.length
+    ? premium.map((id,i)=>`<div class="list-item">
+        <span class="li-email">👑 ${esc(id)}</span>
+        <button class="del" onclick="delPrem(${i})">✕</button>
+      </div>`).join('')
+    : '<div style="padding:18px;text-align:center;color:var(--muted);font-size:11px">No premium users</div>';
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function tab(show, hide, el) {
+  document.getElementById('tp-'+show).classList.add('on');
+  document.getElementById('tp-'+hide).classList.remove('on');
+  el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── LOG ───────────────────────────────────────────────────────
+function log(msg, type='') {
+  const el  = document.getElementById('log');
+  const now = new Date().toLocaleTimeString();
+  const sp  = document.createElement('span');
+  sp.className = 'll' + (type ? ' '+type : '');
+  sp.textContent = `[${now}] ${msg}`;
+  el.appendChild(sp);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (err?' err':'');
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>t.className='', 2800);
+}
+
+function esc(s='') { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── INIT ──────────────────────────────────────────────────────
+function init() {
+  refresh();
+  renderUptimeBar();
+  updateBotUI();
+  startPinging();
+  log('Dashboard initialized — bot keep-alive started', 'b');
+  log(`Pinging ${BOT_URL} every ${PING_EVERY/1000}s`, 'b');
+}
+</script>
+</body>
+</html>
